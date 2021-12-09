@@ -1,16 +1,12 @@
-import warnings
-
 from django.db.models import QuerySet
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import mixins, filters, status
+from rest_framework import mixins, status
 from rest_framework.decorators import permission_classes, api_view
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from drf_util.filters import CustomFilterBackend
-from drf_util.pagination import CustomPagination
 from drf_util.utils import add_related
 
 health_check_response = openapi.Response('Health check')
@@ -72,7 +68,7 @@ class BaseViewSet(GenericViewSet):
     serializer_class = None
     serializer_create_class = None
     serializer_by_action = {}
-    permission_classes_by_action = {"default": [IsAuthenticated]}
+    permission_classes_by_action = {}
     autocomplete_field = None
 
     def get_queryset(self) -> QuerySet:
@@ -81,11 +77,11 @@ class BaseViewSet(GenericViewSet):
             queryset = add_related(queryset, self.get_serializer())
         return queryset
 
-    def get_serializer_class(self):
-        if self.action in self.serializer_by_action:
-            return self.serializer_by_action[self.action]
+    def get_serializer_by_action(self):
+        return self.serializer_by_action.get(self.action)
 
-        return super().get_serializer_class()
+    def get_serializer_class(self):
+        return self.get_serializer_by_action() or super().get_serializer_class()
 
     def get_permissions(self):
         try:
@@ -113,15 +109,13 @@ class BaseViewSet(GenericViewSet):
         return self.query_serializer
 
     def get_serializer_create_class(self):
-        return self.serializer_create_class if self.serializer_create_class is not None else self.serializer_class
+        return self.get_serializer_by_action() or self.serializer_create_class or self.serializer_class
 
     def get_object_id(self):
         return self.kwargs.get(self.lookup_field)
 
 
 class BaseListModelMixin(mixins.ListModelMixin):
-    filter_backends = (filters.OrderingFilter, CustomFilterBackend, filters.SearchFilter,)
-    pagination_class = CustomPagination
     filter_class = None
     search_fields = ()
     ordering_fields = '__all__'

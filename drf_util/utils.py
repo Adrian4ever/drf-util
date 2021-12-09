@@ -3,7 +3,6 @@ import sys
 from typing import Any
 
 from dateutil import parser
-from django.conf import settings
 from django.db.models import QuerySet, ForeignKey, ManyToManyField
 from django.db.models import TextChoices
 from rest_framework.serializers import Serializer
@@ -71,6 +70,9 @@ def gt(obj: object, path: str, default: Any = None, sep: str = '.') -> Any:
                 yield item
 
     obj = [obj]
+
+    if not isinstance(path, str):
+        return default
 
     for key in path.split(sep):
         obj = _dispatch_list(obj, key)
@@ -157,6 +159,8 @@ def offset_objects(key, get_function, save_function, storage):
 
 
 def date(item):
+    from django.conf import settings
+
     try:
         return parser.parse(item, ignoretz=not getattr(settings, 'USE_TZ', False))
     except TypeError:
@@ -164,6 +168,8 @@ def date(item):
 
 
 def to_dt(items):
+    from django.conf import settings
+
     for k, item in enumerate(items):
         if item:
             items[k] = parser.parse(item, ignoretz=not getattr(settings, 'USE_TZ', False))
@@ -202,7 +208,7 @@ def iterate_query(queryset, offset_field, offset_start, limit=100):
             yield obj
 
 
-def get_applications(base_folder=gt(settings, 'APPS_PATH', 'apps'), inside_file='', only_directory=True):
+def get_applications(base_folder='apps', inside_file='', only_directory=True):
     if inside_file:
         inside_file += '*'
 
